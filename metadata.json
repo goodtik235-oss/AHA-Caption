@@ -1,0 +1,7 @@
+{
+  "name": "AHA Studio - AI Video Localizer",
+  "description": "An advanced video tool for transcribing, translating, and AI-dubbing videos using Gemini AI. Edit captions, analyze speech stats, and export localized content.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
