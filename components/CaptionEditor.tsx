@@ -1,16 +1,25 @@
 
 import React, { useEffect, useRef } from 'react';
 import { Caption } from '../types';
-import { Edit2, Play, Clock } from 'lucide-react';
+import { Edit2, Play, Clock, Sparkles } from 'lucide-react';
 
 interface CaptionEditorProps {
   captions: Caption[];
   currentTime: number;
   onUpdateCaption: (id: string, text: string) => void;
   onSeek: (time: number) => void;
+  onMagicFix: () => void;
+  isProcessing: boolean;
 }
 
-const CaptionEditor: React.FC<CaptionEditorProps> = ({ captions, currentTime, onUpdateCaption, onSeek }) => {
+const CaptionEditor: React.FC<CaptionEditorProps> = ({ 
+  captions, 
+  currentTime, 
+  onUpdateCaption, 
+  onSeek, 
+  onMagicFix,
+  isProcessing 
+}) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -25,12 +34,25 @@ const CaptionEditor: React.FC<CaptionEditorProps> = ({ captions, currentTime, on
 
   return (
     <div className="h-full flex flex-col bg-slate-900/30 backdrop-blur-sm">
-      <div className="p-6 border-b border-slate-800">
-        <h2 className="text-lg font-bold flex items-center text-white">
-          <Edit2 size={18} className="mr-3 text-indigo-400" />
-          Edit Captions
-        </h2>
-        <p className="text-xs text-slate-500 mt-1 uppercase tracking-widest font-semibold">{captions.length} Segments Found</p>
+      <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold flex items-center text-white">
+            <Edit2 size={18} className="mr-3 text-indigo-400" />
+            Edit Captions
+          </h2>
+          <p className="text-xs text-slate-500 mt-1 uppercase tracking-widest font-semibold">{captions.length} Segments</p>
+        </div>
+        
+        {captions.length > 0 && (
+          <button
+            onClick={onMagicFix}
+            disabled={isProcessing}
+            title="AI Proofread & Fix"
+            className="p-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 rounded-xl transition-all border border-indigo-500/20 active:scale-95 disabled:opacity-50 group"
+          >
+            <Sparkles size={18} className="group-hover:rotate-12 transition-transform" />
+          </button>
+        )}
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
@@ -49,7 +71,7 @@ const CaptionEditor: React.FC<CaptionEditorProps> = ({ captions, currentTime, on
                 key={cap.id}
                 className={`p-4 rounded-2xl border transition-all cursor-pointer group ${
                   isActive 
-                    ? 'bg-indigo-600/10 border-indigo-500 shadow-lg shadow-indigo-500/5' 
+                    ? 'bg-indigo-600/15 border-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.15)] ring-1 ring-indigo-500/30' 
                     : 'bg-slate-900 border-slate-800 hover:border-slate-700'
                 }`}
                 onClick={() => onSeek(cap.start)}
@@ -67,7 +89,7 @@ const CaptionEditor: React.FC<CaptionEditorProps> = ({ captions, currentTime, on
                   </button>
                 </div>
                 <textarea
-                  className="w-full bg-transparent text-sm text-slate-200 focus:outline-none resize-none placeholder-slate-600"
+                  className="w-full bg-transparent text-sm text-slate-200 focus:outline-none resize-none placeholder-slate-600 leading-relaxed"
                   value={cap.text}
                   onChange={(e) => onUpdateCaption(cap.id, e.target.value)}
                   rows={2}

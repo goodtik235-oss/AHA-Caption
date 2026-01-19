@@ -8,7 +8,7 @@ import CaptionEditor from './components/CaptionEditor';
 import StatsChart from './components/StatsChart';
 import { Caption, ProcessingStatus, SUPPORTED_LANGUAGES } from './types';
 import { extractAudioFromVideo, base64ToWavBlob } from './services/audioUtils';
-import { transcribeAudio, translateCaptions, generateSpeech } from './services/geminiService';
+import { transcribeAudio, translateCaptions, generateSpeech, fixCaptions } from './services/geminiService';
 import { renderVideoWithCaptions } from './services/videoRenderer';
 
 function App() {
@@ -111,6 +111,24 @@ function App() {
       if (err.name === 'AbortError' || controller.signal.aborted) return;
       setStatus(ProcessingStatus.ERROR);
       setErrorMsg(err.message || "An unknown error occurred.");
+    }
+  };
+
+  const handleMagicFix = async () => {
+    if (captions.length === 0) return;
+    const controller = new AbortController();
+    processAbortControllerRef.current = controller;
+    
+    try {
+      setStatus(ProcessingStatus.TRANSCRIBING); // Re-use for generic processing state
+      const fixed = await fixCaptions(captions, controller.signal);
+      if (controller.signal.aborted) return;
+      setCaptions(fixed);
+      setStatus(ProcessingStatus.COMPLETED);
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
+      setStatus(ProcessingStatus.ERROR);
+      setErrorMsg("Failed to apply Magic Fix.");
     }
   };
 
@@ -300,10 +318,10 @@ function App() {
                 {isRendering ? 'Exporting Masterpiece' : 'Processing Content'}
             </h2>
             <p className="text-slate-400 mb-10 text-center max-w-md text-lg">
-                {status === ProcessingStatus.EXTRACTING_AUDIO && 'Reading audio frequencies...'}
-                {status === ProcessingStatus.TRANSCRIBING && 'AHA is listening to your video...'}
-                {status === ProcessingStatus.TRANSLATING && 'Converting languages...'}
-                {status === ProcessingStatus.GENERATING_SPEECH && 'Synthesizing AI dubbed audio...'}
+                {status === ProcessingStatus.EXTRACTING_AUDIO && 'Optimizing audio spectrum...'}
+                {status === ProcessingStatus.TRANSCRIBING && 'AHA is analyzing your content...'}
+                {status === ProcessingStatus.TRANSLATING && 'Adapting to local culture...'}
+                {status === ProcessingStatus.GENERATING_SPEECH && 'Synthesizing voiceover...'}
                 {status === ProcessingStatus.RENDERING && `Rendering: ${Math.round(renderingProgress * 100)}%`}
             </p>
             
@@ -369,7 +387,7 @@ function App() {
                     <h3 className="font-semibold text-slate-200 flex items-center">
                       <Wand2 size={16} className="mr-2 text-indigo-400"/> Transcribe
                     </h3>
-                    <p className="text-[10px] text-slate-500 mt-1 text-balance">Extract high-accuracy text captions.</p>
+                    <p className="text-[10px] text-slate-500 mt-1 text-balance">High-accuracy voice-to-text conversion.</p>
                   </div>
                   <button
                     onClick={isTranscribing ? handleStopProcessing : handleGenerateCaptions}
@@ -382,7 +400,7 @@ function App() {
                           : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg'
                     }`}
                   >
-                     {isTranscribing ? 'Stop' : 'Generate'}
+                     {isTranscribing ? 'Stop' : 'Analyze'}
                   </button>
                 </div>
 
@@ -392,7 +410,7 @@ function App() {
                     <h3 className="font-semibold text-slate-200 flex items-center">
                       <Languages size={16} className="mr-2 text-purple-400"/> Translate
                     </h3>
-                    <p className="text-[10px] text-slate-500 mt-1">Localization for global reach.</p>
+                    <p className="text-[10px] text-slate-500 mt-1">Cross-lingual adaptation.</p>
                   </div>
                   <div className="flex space-x-2">
                     <select
@@ -425,7 +443,7 @@ function App() {
                     <h3 className="font-semibold text-slate-200 flex items-center">
                       <Mic size={16} className="mr-2 text-pink-400"/> AI Dubbing
                     </h3>
-                    <p className="text-[10px] text-slate-500 mt-1">Synthesis of natural voiceover.</p>
+                    <p className="text-[10px] text-slate-500 mt-1">Natural localized speech synthesis.</p>
                   </div>
                   <button
                     onClick={isDubbing ? handleStopProcessing : handleDubbing}
@@ -456,7 +474,7 @@ function App() {
                           disabled={!dubbedAudioBlob || isProcessing || isRendering}
                           className="w-3 h-3 rounded bg-slate-800 border-slate-700 text-emerald-500"
                         />
-                        <label htmlFor="dubCheck" className={`text-[10px] select-none cursor-pointer ${dubbedAudioBlob ? 'text-slate-300' : 'text-slate-600'}`}>Burn Dub</label>
+                        <label htmlFor="dubCheck" className={`text-[10px] select-none cursor-pointer ${dubbedAudioBlob ? 'text-slate-300' : 'text-slate-600'}`}>Include Dub</label>
                       </div>
                       
                       {dubbedAudioUrl && (
@@ -510,6 +528,8 @@ function App() {
              captions={captions} 
              currentTime={currentTime} 
              onUpdateCaption={updateCaption}
+             onMagicFix={handleMagicFix}
+             isProcessing={isProcessing}
              onSeek={(t) => {
                 const video = document.querySelector('video');
                 if (video) video.currentTime = t;
